@@ -39,6 +39,8 @@ def main():
 
         # gather initial info from all files
 
+        print('gathering info from all files..')
+
         frequency_strengths = zeros(len(config.frequencies_of_bins))
 
         for file in files:
