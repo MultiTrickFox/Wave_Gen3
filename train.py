@@ -31,7 +31,7 @@ def main():
     data, data_dev = split_data(data)
     # from random import choice
     # from torch import randn
-    # data = [[randn(1,config.in_size) for _ in range(choice([50,65,70]))] for _ in range(25)]
+    # data = [[randn(config.in_size) for _ in range(choice([50,65,70]))] for _ in range(20)]
     # data_dev = []
 
     if not config.batch_size or config.batch_size >= len(data):
@@ -50,9 +50,9 @@ def main():
     print(f'hm data: {len(data)}, hm dev: {len(data_dev)}, bs: {config.batch_size}, lr: {config.learning_rate}, \ntraining started @ {now()}')
 
     data_losss, dev_losss = [], []
-    if config.batch_size!=len(data):
-        data_losss.append(loss:=dev_loss(model, data))
-        if not config.all_losses: config.all_losses.append(loss)
+    if not one_batch:
+        if not config.all_losses: config.all_losses.append(dev_loss(model, data))
+        data_losss.append(config.all_losses[-1])
     if config.dev_ratio:
         dev_losss.append(dev_loss(model, data_dev))
 
@@ -65,26 +65,26 @@ def main():
 
         for i, batch in enumerate(batchify_data(data)):
 
-            # print(f'\tbatch {i}, started @ {now()}', flush=True)
-
+            if not one_batch: print(f'\tbatch {i}, started @ {now()}', flush=True)
             batch_size = sum(len(sequence) for sequence in batch)
 
             loss += respond_to(model, batch)
+
             sgd(model, batch_size=batch_size) if config.optimizer == 'sgd' else \
                 adaptive_sgd(model, batch_size=batch_size)
 
         loss /= sum(len(sequence) for sequence in data)
+
         if not one_batch: loss = dev_loss(model, data)
         data_losss.append(loss)
         config.all_losses.append(loss)
-        if config.dev_ratio:
-            dev_losss.append(dev_loss(model, data_dev))
+        if config.dev_ratio: dev_losss.append(dev_loss(model, data_dev))
 
         print(f'epoch {ep}, loss {loss}, dev loss {dev_losss[-1] if config.dev_ratio else ""}, completed @ {now()}', flush=True)
         if config.ckp_per_ep and ((ep+1)%config.ckp_per_ep==0):
                 save_model(model,config.model_path+f'_ckp{ep}')
 
-    data_losss.append(dev_loss(model, data))
+    if one_batch: data_losss.append(dev_loss(model, data))
 
     print(f'training ended @ {now()} \nfinal losses: {data_losss[-1]}, {dev_losss[-1] if config.dev_ratio else ""}', flush=True)
     show(plot(data_losss))

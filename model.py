@@ -73,8 +73,8 @@ def prop_model(model, state, inp):
     # print(f'\t wo_time: {wo_time.size()} w_time: {w_time.size()}')
 
     time_importance = prop_layer(model[3], inp_and_state)
-    time_importance_out = time_importance[:,0,:1]
-    time_importance_state_out = time_importance[:,0,1:]
+    time_importance_out = time_importance[...,:1]
+    time_importance_state_out = time_importance[...,1:]
 
     # print(f'\t ti: {time_importance.size()} ti_out: {time_importance_out.size()} ti_state_out: {time_importance_state_out.size()}')
 
@@ -86,7 +86,7 @@ def prop_model(model, state, inp):
 
 def empty_state(batch_size=1):
 
-    return zeros(batch_size, 1, config.state_size)
+    return zeros(batch_size, config.state_size)
 
 
 ##
@@ -181,7 +181,6 @@ def sgd(model, lr=None, batch_size=None):
 
 moments, variances, ep_nr = [], [], 0
 
-
 def adaptive_sgd(model, lr=None, batch_size=None,
                  alpha_moment=0.9, alpha_variance=0.999, epsilon=1e-8,
                  do_moments=True, do_variances=True, do_scaling=False):
@@ -198,23 +197,23 @@ def adaptive_sgd(model, lr=None, batch_size=None,
 
     with no_grad():
             for _, layer in enumerate(model):
-                for __, weight in enumerate(layer[1:]):
-                    if weight.requires_grad:
+                for __, param in enumerate(layer[1:]):
+                    if param.requires_grad:
 
                         lr_ = lr
-                        weight.grad /= batch_size
+                        param.grad /= batch_size
 
                         if do_moments:
-                            moments[_][__] = alpha_moment * moments[_][__] + (1-alpha_moment) * weight.grad
+                            moments[_][__] = alpha_moment * moments[_][__] + (1-alpha_moment) * param.grad
                             moment_hat = moments[_][__] / (1-alpha_moment**(ep_nr+1))
                         if do_variances:
-                            variances[_][__] = alpha_variance * variances[_][__] + (1-alpha_variance) * weight.grad**2
+                            variances[_][__] = alpha_variance * variances[_][__] + (1-alpha_variance) * param.grad**2
                             variance_hat = variances[_][__] / (1-alpha_variance**(ep_nr+1))
                         if do_scaling:
-                            lr_ *= norm(weight)/norm(weight.grad)
+                            lr_ *= norm(param)/norm(param.grad)
 
-                        weight -= lr_ * (moment_hat if do_moments else weight.grad) / ((sqrt(variance_hat)+epsilon) if do_variances else 1)
-                        weight.grad = None
+                        param -= lr_ * (moment_hat if do_moments else param.grad) / ((sqrt(variance_hat)+epsilon) if do_variances else 1)
+                        param.grad = None
 
 
 ##

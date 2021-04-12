@@ -7,14 +7,10 @@ from copy import deepcopy
 from random import shuffle
 
 from librosa import fft_frequencies, amplitude_to_db, db_to_amplitude
-
 from librosa.core import load
-
 from librosa.effects import split, trim
-
 from librosa.core.spectrum import stft, istft, griffinlim
 from librosa.feature import chroma_stft
-
 from librosa.feature import mfcc
 from librosa.feature.inverse import mfcc_to_audio
 
@@ -25,7 +21,6 @@ from numpy import stack
 
 from librosa.display import specshow
 from matplotlib.pyplot import plot, show
-
 from scipy.io.wavfile import write
 
 ##
@@ -86,11 +81,14 @@ def main():
     print('saved data.')
 
 
+##
+
+
 def audio_to_data(signal, song_id):
 
     meta = [song_id]
 
-    if config.silence_thr_db: signal, _ = trim(signal, config.silence_thr_db, frame_length=config.fft_bins, hop_length=config.fft_hop_len)
+    if config.silence_thr_db is not None: signal, _ = trim(signal, config.silence_thr_db, frame_length=config.fft_bins, hop_length=config.fft_hop_len)
 
     spec = abs(stft(signal, config.fft_bins, config.fft_hop_len, config.fft_window_len))
 

@@ -14,7 +14,7 @@ def main():
 
     # from random import shuffle
     # shuffle(d)
-    d = d[:config.hm_wav_gen]
+    d = d[:config.hm_output_file]
 
     for i,(seq,meta) in enumerate(d):
 
