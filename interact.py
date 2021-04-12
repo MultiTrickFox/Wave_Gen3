@@ -8,15 +8,12 @@ def main():
         config.model_path = input('valid model: ')
         model = load_model()
 
-    if config.do_fourier:
-        import data as data
-    else: import data_direct as data
+    from data import load_data, split_data
+    d = load_data(with_meta=True)
+    d, _ = split_data(d)
 
-    d = data.load_data(with_meta=True)
-    d, _ = data.split_data(d)
-
-    from random import shuffle
-    #shuffle(d)
+    # from random import shuffle
+    # shuffle(d)
     d = d[:config.hm_wav_gen]
 
     for i,(seq,meta) in enumerate(d):
@@ -28,9 +25,9 @@ def main():
             seq = seq.cpu()
         seq = seq.numpy()
 
-        seq = data.data_to_audio(seq, meta)
-
-        data.write(f'{config.output_file}{i}.wav', config.sample_rate, seq)
+        from data import data_to_audio, write
+        seq = data_to_audio(seq, meta)
+        write(f'{config.output_file}{i}.wav', config.sample_rate, seq)
 
 if __name__ == '__main__':
     main()
