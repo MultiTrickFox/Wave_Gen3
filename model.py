@@ -11,9 +11,6 @@ from torch import              \
     float32, no_grad)
 from torch.nn.init import xavier_normal_
 
-from math import ceil
-from copy import deepcopy
-
 ##
 
 
@@ -43,12 +40,12 @@ def make_model():
 
     return [
         # out & state_out w/o time
-        make_layer(config.in_size, (config.out_size+config.state_size)*config.hm_heads, 't'),
+        make_layer(config.in_size, (config.out_size+config.state_size) * config.hm_modalities, 't'),
         # out & state_out w/ time
-        make_layer(config.in_size+config.state_size, (config.out_size+config.state_size)*config.hm_heads, 't'),
+        make_layer(config.in_size + config.state_size, (config.out_size+config.state_size) * config.hm_modalities, 't'),
 
         # importance of heads
-        make_layer(config.in_size+config.state_size, config.hm_heads, None),
+        make_layer(config.in_size + config.state_size, config.hm_modalities, None),
 
         # time_importance of out & state_out
         make_layer(config.in_size+config.state_size, 2, 's'),
@@ -58,12 +55,12 @@ def prop_model(model, state, inp):
 
     inp_and_state = cat([inp,state],-1)
 
-    wo_time_heads = prop_layer(model[0],inp).view(inp.size(0),config.hm_heads,config.out_size+config.state_size)
-    w_time_heads = prop_layer(model[1],inp_and_state).view(inp.size(0),config.hm_heads,config.out_size+config.state_size)
+    wo_time_heads = prop_layer(model[0],inp).view(inp.size(0), config.hm_modalities, config.out_size + config.state_size)
+    w_time_heads = prop_layer(model[1],inp_and_state).view(inp.size(0), config.hm_modalities, config.out_size + config.state_size)
 
     # print(f'\t wo_heads: {wo_time_heads.size()} w_heads: {w_time_heads.size()}')
 
-    heads_coeffs = softmax(prop_layer(model[2],inp_and_state),-1).view(inp.size(0),config.hm_heads,1)
+    heads_coeffs = softmax(prop_layer(model[2],inp_and_state),-1).view(inp.size(0), config.hm_modalities, 1)
 
     # print(f'\t head_coeffs: {prop_layer(model[2],inp_and_state).size()} head_coeffs: {heads_coeffs.size()} ')
 
@@ -86,7 +83,7 @@ def prop_model(model, state, inp):
 
 def empty_state(batch_size=1):
 
-    return zeros(batch_size, config.state_size)
+    return zeros(batch_size, config.state_size) if not config.use_gpu else zeros(batch_size, config.state_size).cuda()
 
 
 ##
@@ -270,15 +267,14 @@ class TorchModel(Module):
 
     def __init__(self, model):
         super(TorchModel, self).__init__()
-        for layer_name, layer in enumerate(model):
-            for field_name, field in layer._asdict().items():
-                if type(field) != Parameter:
-                    field = Parameter(field)
-                setattr(self,f'layer{layer_name}_field{field_name}',field)
-            setattr(self,f'layertype{layer_name}',type(layer))
+        for layer_i, layer in enumerate(model):
+            for param_i,param in enumerate(layer[1:]):
+                if type(param) != Parameter:
+                    param = Parameter(param)
+                setattr(self,f'layer{layer_i}_param{param_i}',param)
+            setattr(self,f'act{layer_i}',layer[0])
 
-            model[layer_name] = (getattr(self, f'layertype{layer_name}')) \
-                (*[getattr(self, f'layer{layer_name}_field{field_name}') for field_name in getattr(self, f'layertype{layer_name}')._fields])
+            model[layer_i] = [getattr(self, f'act{layer_i}')] + list(getattr(self, f'layer{layer_i}_param{param_i}') for param_i in range(len(model[layer_i])-1))
         self.model = model
 
     def forward(self, states, inp):
@@ -286,4 +282,4 @@ class TorchModel(Module):
 
 
 def pull_copy_from_gpu(model):
-    return [type(layer)(*[weight.detach().cpu() for weight in layer._asdict().values()]) for layer in model]
+    return [[layer[0]]+list(weight.detach().cpu() for weight in layer[1:]) for layer in model]

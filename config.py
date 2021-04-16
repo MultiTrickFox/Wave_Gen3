@@ -40,16 +40,18 @@ state_out_delta = False
 in_size = timestep_size
 out_size = timestep_size
 
-hm_heads = 10
+hm_modalities = 1
 
-init_xavier = False
+init_xavier = True
 
 
 ## train params
 
 loss_squared = True
 
-learning_rate = 1e-4 #1e-3 #2e-5
+learning_rate = 1e-3
+
+max_seq_len = None
 
 batch_size = 0
 gradient_clip = 0

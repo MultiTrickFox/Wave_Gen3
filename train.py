@@ -15,6 +15,7 @@ from matplotlib.pyplot import plot, show
 def main():
 
     if config.fresh_model:
+        config.all_losses = []
         save_model(make_model())
         model = load_model()
         print('created model.',end=' ')
@@ -31,8 +32,9 @@ def main():
     data, data_dev = split_data(data)
     # from random import choice
     # from torch import randn
-    # data = [[randn(config.in_size) for _ in range(choice([50,65,70]))] for _ in range(20)]
+    # data = [[randn(config.in_size) for _ in range(choice(range(2_000,3_000)))] for _ in range(40)]
     # data_dev = []
+    if config.max_seq_len: data = [d[:config.max_seq_len] for d in data]
 
     if not config.batch_size or config.batch_size >= len(data):
         config.batch_size = len(data)
@@ -41,11 +43,6 @@ def main():
         config.batch_size = int(len(data)*config.batch_size)
         one_batch = False
     else: one_batch = False
-
-    if not config.batch_size:
-        config.batch_size = len(data_dev) if config.dev_ratio else len(data)
-    elif config.batch_size > len(data):
-        config.batch_size = len(data)
 
     print(f'hm data: {len(data)}, hm dev: {len(data_dev)}, bs: {config.batch_size}, lr: {config.learning_rate}, \ntraining started @ {now()}')
 
