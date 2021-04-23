@@ -205,7 +205,7 @@ def save_model(model, path=None):
     from warnings import filterwarnings
     filterwarnings("ignore")
     if not path: path = config.model_path
-    path = path+'.pk'
+    if path[-3:]!='.pk': path+='.pk'
     if config.use_gpu:
         moments_ = [[e2.detach().cuda() for e2 in e1] for e1 in moments]
         variances_ = [[e2.detach().cuda() for e2 in e1] for e1 in variances]
@@ -221,7 +221,7 @@ def save_model(model, path=None):
 def load_model(path=None, fresh_meta=None):
     if not path: path = config.model_path
     if not fresh_meta: fresh_meta = config.fresh_meta
-    path = path+'.pk'
+    if path[-3:]!='.pk': path+='.pk'
     obj = pickle_load(path)
     if obj:
         model, meta, configs = obj

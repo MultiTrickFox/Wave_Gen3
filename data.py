@@ -177,7 +177,9 @@ def data_to_audio(data,meta):
 
 def load_data(with_meta=False):
     from torch import Tensor
-    data = pickle_load(config.data_path+'.pk')
+    path = config.data_path
+    if path[-3:]!='.pk': path+='.pk'
+    data = pickle_load(path)
     data_tensors = []
     for sequence,meta in data:
         sequence = Tensor(sequence)

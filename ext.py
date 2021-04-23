@@ -25,13 +25,13 @@ def now():
 ##
 
 
-def pickle_save(obj, file_path, buffered=False):
+def pickle_save(obj, file_path, buffered=True):
     with open(file_path, 'wb+') as f:
         if buffered:
             return dump(obj, BufferedFile(f), protocol=HIGHEST_PROTOCOL)
         else: return dump(obj, f)
 
-def pickle_load(file_path, buffered=False):
+def pickle_load(file_path, buffered=True):
     try:
         with open(file_path, 'rb') as f:
             if buffered:

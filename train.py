@@ -12,21 +12,21 @@ from matplotlib.pyplot import plot, show
 ##
 
 
-def main(text_disp=True):
+def main(disp_text=True):
 
     if config.fresh_model:
         config.all_losses = []
         save_model(make_model())
         model = load_model()
-        if text_disp: print('created model.',end=' ')
+        if disp_text: print('created model.', end=' ')
     else:
         model = load_model()
         if not model:
             save_model(make_model())
             model = load_model()
-            if text_disp: print('created model.',end=' ')
+            if disp_text: print('created model.', end=' ')
         else:
-            if text_disp: print('loaded model.',end=' ')
+            if disp_text: print('loaded model.', end=' ')
 
     data = load_data()
     data, data_dev = split_data(data)
@@ -45,7 +45,7 @@ def main(text_disp=True):
         one_batch = False
     else: one_batch = False
 
-    if text_disp: print(f'hm data: {len(data)}, hm dev: {len(data_dev)}, bs: {config.batch_size}, lr: {config.learning_rate}, \ntraining started @ {now()}')
+    if disp_text: print(f'hm data: {len(data)}, hm dev: {len(data_dev)}, bs: {config.batch_size}, lr: {config.learning_rate}, \ntraining started @ {now()}')
 
     data_losss, dev_losss = [], []
     if not one_batch:
@@ -55,7 +55,7 @@ def main(text_disp=True):
         dev_losss.append(dev_loss(model, data_dev))
 
     if data_losss or dev_losss:
-        if text_disp: print(f'initial loss(es): {data_losss[-1] if data_losss else ""} {dev_losss[-1] if dev_losss else ""}')
+        if disp_text: print(f'initial loss(es): {data_losss[-1] if data_losss else ""} {dev_losss[-1] if dev_losss else ""}')
 
     for ep in range(config.hm_epochs):
 
@@ -74,13 +74,13 @@ def main(text_disp=True):
         config.all_losses.append(loss)
         if config.dev_ratio: dev_losss.append(dev_loss(model, data_dev))
 
-        if text_disp: print(f'epoch {ep}, loss {loss}, dev loss {dev_losss[-1] if config.dev_ratio else ""}, completed @ {now()}', flush=True)
+        if disp_text: print(f'epoch {ep}, loss {loss}, dev loss {dev_losss[-1] if config.dev_ratio else ""}, completed @ {now()}', flush=True)
         if config.ckp_per_ep and ((ep+1)%config.ckp_per_ep==0):
                 save_model(model,config.model_path+f'_ckp{ep}')
 
     if one_batch: data_losss.append(dev_loss(model, data))
 
-    if text_disp: print(f'training ended @ {now()} \nfinal losses: {data_losss[-1]}, {dev_losss[-1] if config.dev_ratio else ""}', flush=True)
+    if disp_text: print(f'training ended @ {now()} \nfinal losses: {data_losss[-1]}, {dev_losss[-1] if config.dev_ratio else ""}', flush=True)
     show(plot(data_losss))
     if config.dev_ratio:
         show(plot(dev_losss))
