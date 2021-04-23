@@ -1,13 +1,13 @@
 import config
-from ext import pickle_save, pickle_load, now
+from ext import pickle_save, pickle_load
 
 from torch import              \
     (tensor, Tensor,
     zeros, ones, eye, randn,
     cat, stack,
     sigmoid, tanh, relu, softmax,
-    pow, sqrt, abs,
-    norm, mean,
+    pow, sqrt,
+    abs, sum, norm, mean,
     float32, no_grad)
 from torch.nn.init import xavier_normal_
 
@@ -38,47 +38,33 @@ def prop_layer(layer, inp):
 
 def make_model():
 
-    return [
-        # out & state_out w/o time
-        make_layer(config.in_size, (config.out_size+config.state_size) * config.hm_modalities, 't'),
-        # out & state_out w/ time
-        make_layer(config.in_size + config.state_size, (config.out_size+config.state_size) * config.hm_modalities, 't'),
+    in_size = config.in_size+config.state_size
+    # out_size = config.out_size+config.state_size*3
 
-        # importance of heads
-        make_layer(config.in_size + config.state_size, config.hm_modalities, None),
+    if not config.hidden_sizes:
+        # model = [make_layer(in_size,out_size)]
+        model = [(None, cat([make_layer(in_size,config.out_size,'t')[1], make_layer(in_size,config.state_size,'t')[1], make_layer(in_size,config.state_size,'s')[1], make_layer(in_size,config.state_size,'s')[1]], -1))]
+    else:
+        model = [make_layer(in_size,config.hidden_sizes[0],config.hidden_acts)]
+        for i,hs in enumerate(config.hidden_sizes[1:]):
+            model.append(make_layer(config.hidden_sizes[i-1],config.hidden_sizes[i],config.hidden_acts))
+        # model.append(make_layer(config.hidden_sizes[-1],out_size))
+        model.append((None, cat([make_layer(config.hidden_sizes[-1],config.out_size,'t')[1], make_layer(config.hidden_sizes[-1],config.state_size,'t')[1], make_layer(config.hidden_sizes[-1],config.state_size,'s')[1], make_layer(config.hidden_sizes[-1],config.state_size,'s')[1]], -1)))
 
-        # time_importance of out & state_out
-        make_layer(config.in_size+config.state_size, 2, 's'),
-    ]
+    return model
 
 def prop_model(model, state, inp):
 
-    inp_and_state = cat([inp,state],-1)
+    io = cat([inp,state],-1)
+    for layer in model:
+        io = prop_layer(layer, io)
 
-    wo_time_heads = prop_layer(model[0],inp).view(inp.size(0), config.hm_modalities, config.out_size + config.state_size)
-    w_time_heads = prop_layer(model[1],inp_and_state).view(inp.size(0), config.hm_modalities, config.out_size + config.state_size)
+    out = tanh(io[...,:config.out_size])
 
-    # print(f'\t wo_heads: {wo_time_heads.size()} w_heads: {w_time_heads.size()}')
+    state = state * sigmoid(io[...,config.out_size:config.out_size+config.state_size]) + \
+            tanh(io[...,config.out_size+config.state_size:config.out_size+config.state_size*2]) * sigmoid(io[...,-config.state_size:])
 
-    heads_coeffs = softmax(prop_layer(model[2],inp_and_state),-1).view(inp.size(0), config.hm_modalities, 1)
-
-    # print(f'\t head_coeffs: {prop_layer(model[2],inp_and_state).size()} head_coeffs: {heads_coeffs.size()} ')
-
-    wo_time = (wo_time_heads*heads_coeffs).sum(1)
-    w_time = (w_time_heads*heads_coeffs).sum(1)
-
-    # print(f'\t wo_time: {wo_time.size()} w_time: {w_time.size()}')
-
-    time_importance = prop_layer(model[3], inp_and_state)
-    time_importance_out = time_importance[...,:1]
-    time_importance_state_out = time_importance[...,1:]
-
-    # print(f'\t ti: {time_importance.size()} ti_out: {time_importance_out.size()} ti_state_out: {time_importance_state_out.size()}')
-
-    out = w_time[...,:config.out_size] * time_importance_out + wo_time[...,:config.out_size] * (1-time_importance_out)
-    state_out = w_time[...,config.out_size:] * time_importance_state_out + wo_time[...,config.out_size:] * (1-time_importance_state_out)
-
-    return out, state_out if not config.state_out_delta else state+state_out
+    return out, state
 
 
 def empty_state(batch_size=1):
@@ -113,10 +99,13 @@ def respond_to(model, sequences, state=None, training_run=True, extra_steps=0):
 
         out, partial_state = prop_model(model, partial_state, inp)
 
-        # print(f'out_size: {out.size()}')
+        #  print(f'out_size: {out.size()}')
         # print(f'state_out_size: {partial_state.size()}')
 
-        loss += sequence_loss(lbl, out)
+        loss_t = sequence_loss(lbl, out)
+        for i,l in zip(has_remaining,loss_t):
+            l /= len(sequences[i])
+        loss += sum(loss_t)
 
         responses.append([out[has_remaining.index(i),:] if i in has_remaining else None for i in range(len(sequences))])
 
@@ -145,15 +134,11 @@ def respond_to(model, sequences, state=None, training_run=True, extra_steps=0):
 ##
 
 
-def sequence_loss(label, out, do_stack=False):
+def sequence_loss(label, out, do_sum=False):
 
-    if do_stack:
-        label = stack(label,dim=0)
-        out = stack(out, dim=0)
+    loss = pow(label-out, 2) if config.loss_squared else abs(label-out)
 
-    loss = pow(label-out, 2) if config.loss_squared else (label-out).abs()
-
-    return loss.sum()
+    return sum(loss) if do_sum else loss
 
 
 def sgd(model, lr=None, batch_size=None):
@@ -253,6 +238,7 @@ def load_model(path=None, fresh_meta=None):
         for k_saved, v_saved in configs:
             v = getattr(config, k_saved)
             if v != v_saved:
+                if v=='all_losses' and fresh_meta: continue
                 print(f'config conflict resolution: {k_saved} {v} -> {v_saved}')
                 setattr(config, k_saved, v_saved)
         return model

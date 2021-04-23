@@ -19,7 +19,7 @@ def main():
     for i,(seq,meta) in enumerate(d):
 
         from model import respond_to
-        _, seq = respond_to(model, [seq], training_run=False, extra_steps=config.hm_extra_steps)
+        _, seq = respond_to(model, [seq[:config.hm_extra_steps]], training_run=False, extra_steps=config.hm_extra_steps)
         seq = seq.detach()
         if config.use_gpu:
             seq = seq.cpu()

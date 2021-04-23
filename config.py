@@ -6,8 +6,6 @@ from librosa.core import frames_to_time
 
 sample_rate = 8_000 # 22_050 # 44_100
 
-do_fourier = True
-
 fft_bins = 2048
 fft_window_len = fft_bins
 fft_hop_len = fft_window_len//4
@@ -22,7 +20,7 @@ frequencies_to_pick = [0.0, 3.90625, 7.8125, 11.71875, 15.625, 19.53125, 23.4375
 frequency_strength_thr = 1e2
 times_of_bins = lambda hm_steps: frames_to_time(range(0,hm_steps), sample_rate, fft_hop_len, fft_bins)
 
-zscore_scale = do_fourier
+zscore_scale = True
 minmax_scale = False
 log_scale = False
 
@@ -34,13 +32,13 @@ dev_ratio = 0
 
 timestep_size = len(frequencies_to_pick)
 
-state_size = timestep_size//2
-state_out_delta = False
-
 in_size = timestep_size
 out_size = timestep_size
 
-hm_modalities = 1
+state_size = 2**8
+
+hidden_sizes = []
+hidden_acts = 't'
 
 init_xavier = True
 
@@ -51,7 +49,7 @@ loss_squared = True
 
 learning_rate = 1e-3
 
-max_seq_len = None
+max_seq_len = 0
 
 batch_size = 0
 gradient_clip = 0
@@ -70,19 +68,20 @@ all_losses = []
 
 ## interact params
 
-hm_extra_steps = 5
+hm_extra_steps = 100
 
-hm_output_file = 5
+hm_output_file = 1
 
 output_file = 'resp'
 
 
 ##
 
-config_to_save = ['do_fourier', 'sample_rate', 'fft_bins', 'fft_window_len', 'fft_hop_len',
+config_to_save = [
+                  'sample_rate', 'fft_bins', 'fft_window_len', 'fft_hop_len',
                   'frequency_strength_thr', 'frequencies_of_bins', 'frequencies_to_pick',
                   'mfcc_bins', 'mel_bins', 'zscore_scale', 'minmax_scale', 'log_scale',
-                  'state_size', 'state_out_delta', 'timestep_size', 'in_size', 'out_size', 'hm_heads',
-                  'seq_window_len', 'seq_stride_len', 'all_losses'
-                  ]
+                  'timestep_size', 'in_size', 'out_size', 'state_size', 'hidden_sizes', 'hidden_acts',
+                  'all_losses',
+                 ]
 

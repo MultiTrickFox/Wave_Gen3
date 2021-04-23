@@ -28,7 +28,7 @@ from scipy.io.wavfile import write
 
 def main():
 
-    files = glob(config.data_path+'/*.wav')
+    files = glob(config.data_path+'*/*.wav')
     files.sort()
 
     # 1- gather info from all files
