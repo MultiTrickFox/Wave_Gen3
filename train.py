@@ -84,7 +84,7 @@ def main(text_disp=True):
     show(plot(data_losss))
     if config.dev_ratio:
         show(plot(dev_losss))
-    show(plot(config.all_losses))
+    if not config.fresh_model: show(plot(config.all_losses))
 
     return model, [data_losss, dev_losss]
 
